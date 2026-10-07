@@ -1,0 +1,58 @@
+{
+  "worlds": [
+    {
+      "id": "direct_fact",
+      "sentences": [
+        {"id": "S1", "text": "Toma is tall."},
+        {"id": "S2", "text": "Every green person is quiet."},
+        {"id": "S3", "text": "Nora is green."},
+        {"id": "S4", "text": "Lena is blue."},
+        {"id": "S5", "text": "Mira is patient."},
+        {"id": "S6", "text": "Every patient person is calm."},
+        {"id": "S7", "text": "Toma likes Nora."},
+        {"id": "S8", "text": "Nora is young."},
+        {"id": "S9", "text": "Every tall person is strong."},
+        {"id": "S10", "text": "Mira likes Toma."},
+        {"id": "S11", "text": "Lena is quiet."},
+        {"id": "S12", "text": "Every young person is curious."}
+      ],
+      "question": {"id": "direct_fact_q", "text": "Is Lena blue?"}
+    },
+    {
+      "id": "two_rule_chain",
+      "sentences": [
+        {"id": "S1", "text": "Toma is tall."},
+        {"id": "S2", "text": "Every calm person is kind."},
+        {"id": "S3", "text": "Nora likes Toma."},
+        {"id": "S4", "text": "Lena is blue."},
+        {"id": "S5", "text": "Every young person is curious."},
+        {"id": "S6", "text": "Mira is patient."},
+        {"id": "S7", "text": "Nora is young."},
+        {"id": "S8", "text": "Every tall person is strong."},
+        {"id": "S9", "text": "Every patient person is calm."},
+        {"id": "S10", "text": "Lena is calm."},
+        {"id": "S11", "text": "Mira likes Nora."},
+        {"id": "S12", "text": "Toma is green."}
+      ],
+      "question": {"id": "two_rule_chain_q", "text": "Is Mira kind?"}
+    },
+    {
+      "id": "no_proof",
+      "sentences": [
+        {"id": "S1", "text": "Toma is patient."},
+        {"id": "S2", "text": "Every calm person is kind."},
+        {"id": "S3", "text": "Nora likes Toma."},
+        {"id": "S4", "text": "Lena is blue."},
+        {"id": "S5", "text": "Every young person is curious."},
+        {"id": "S6", "text": "Mira is quiet."},
+        {"id": "S7", "text": "Nora is young."},
+        {"id": "S8", "text": "Every tall person is strong."},
+        {"id": "S9", "text": "Every patient person is calm."},
+        {"id": "S10", "text": "Lena is calm."},
+        {"id": "S11", "text": "Mira likes Nora."},
+        {"id": "S12", "text": "Toma is green."}
+      ],
+      "question": {"id": "no_proof_q", "text": "Is Mira kind?"}
+    }
+  ]
+}

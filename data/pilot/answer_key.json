@@ -1,0 +1,17 @@
+{
+  "direct_fact_q": {
+    "expected_label": "SUPPORTED",
+    "required_ids": ["S4"],
+    "note": "The claim is explicitly stated by S4."
+  },
+  "two_rule_chain_q": {
+    "expected_label": "SUPPORTED",
+    "required_ids": ["S6", "S9", "S2"],
+    "note": "Mira is patient (S6), so calm (S9), so kind (S2): two rule applications. No other sentence establishes that Mira is calm or kind."
+  },
+  "no_proof_q": {
+    "expected_label": "NOT_ESTABLISHED",
+    "required_ids": null,
+    "note": "Mira is quiet and likes Nora. Neither statement establishes that Mira is patient, calm, or kind. Toma and Lena can be kind, but they are different people."
+  }
+}
