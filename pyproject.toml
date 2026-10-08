@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "normal-rag-pilot"
 version = "0.1.0"
-description = "Auditable three-world sentence RAG and full-context baseline pilot"
+description = "Auditable sentence RAG and full-context baselines for the shared rule-chain-depth benchmark"
 requires-python = ">=3.10"
 dependencies = []
 

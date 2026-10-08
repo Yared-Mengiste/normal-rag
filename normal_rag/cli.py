@@ -11,6 +11,7 @@ import uuid
 
 from .config import load_settings
 from .core import UNMEASURED, add_proof_coverage, answer_question, strict_json, validate_sentences
+from .benchmark import add_benchmark_parser, run_benchmark
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -21,7 +22,8 @@ def read_pilot(path: Path) -> list[dict]:
         raise ValueError("Pilot input must contain only worlds; keep answer keys in a separate file")
     worlds = payload["worlds"]
     if not isinstance(worlds, list) or len(worlds) != 3:
-        raise ValueError("This review-stage CLI requires exactly three worlds, one question per world")
+        raise ValueError("The standalone pilot requires exactly three worlds, one question per world; "
+                         "use benchmark for the shared 40-question dataset")
     world_ids, question_ids = set(), set()
     for world in worlds:
         if not isinstance(world, dict) or set(world) != {"id", "sentences", "question"}:
@@ -70,7 +72,7 @@ def write_json(path: Path, value) -> None:
 
 def render_review(records: list[dict], output: Path) -> None:
     lines = ["# Three-world baseline pilot", "",
-             "Live calls only. Review these outputs before enabling benchmark integration.", "",
+             "Standalone pilot outputs. Run the shared comparison with `python3 -m normal_rag benchmark`.", "",
              "Full context skips retrieval; its retrieved list is empty. Context lists show exactly what the model saw.", ""]
     for index, record in enumerate(records, 1):
         lines += [f"## {record['world_id']} / {record['question_id']} / {record['mode']}", "",
@@ -99,7 +101,7 @@ def pilot(worlds_path: Path, key_path: Path | None, mode: str, output: Path) -> 
     modes = ("rag", "full_context") if mode == "both" else (mode,)
     output.mkdir(parents=True, exist_ok=False)
     write_json(output / "worlds.json", {"worlds": worlds})
-    manifest = {"stage": "three_world_review_only", "created_at": datetime.now(timezone.utc).isoformat(),
+    manifest = {"stage": "three_world_pilot", "created_at": datetime.now(timezone.utc).isoformat(),
                 "settings": settings.public(), "modes": modes,
                 "worlds_sha256": hashlib.sha256(worlds_path.read_bytes()).hexdigest(),
                 "answer_key_sha256": hashlib.sha256(key_path.read_bytes()).hexdigest() if key_path else None,
@@ -136,7 +138,8 @@ def pilot(worlds_path: Path, key_path: Path | None, mode: str, output: Path) -> 
             render_review(records, output)
             providers = Counter(r["provider"] for r in records)
             write_json(output / "review_gate.json", {
-                "status": "AWAITING_USER_REVIEW", "runner_integration_enabled": False,
+                "status": "AWAITING_USER_REVIEW", "scope": "pilot_outputs_only",
+                "benchmark_command": "python3 -m normal_rag benchmark",
                 "completed_records": len(records), "planned_records": len(worlds) * len(modes),
                 "error_count": sum(r["label"] == "ERROR" for r in records),
                 "providers_reported": dict(providers),
@@ -150,22 +153,25 @@ def pilot(worlds_path: Path, key_path: Path | None, mode: str, output: Path) -> 
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Standalone three-world RAG/full-context pilot")
+    parser = argparse.ArgumentParser(description="Normal RAG and full-context rule-chain-depth baselines")
     commands = parser.add_subparsers(dest="command", required=True)
-    run = commands.add_parser("pilot", help="Run exactly three worlds for user review")
+    add_benchmark_parser(commands, ROOT)
+    run = commands.add_parser("pilot", help="Run the original standalone three-world pilot")
     run.add_argument("--worlds", type=Path, default=ROOT / "data/pilot/worlds.json")
     run.add_argument("--answer-key", type=Path, help="Optional annotations, added after answering")
     run.add_argument("--mode", choices=("rag", "full_context", "both"), default="both")
     run.add_argument("--output", type=Path)
-    commands.add_parser("check", help="Validate .env and pilot input without any network calls")
+    commands.add_parser("check", help="Validate the standalone pilot's .env and inputs without network calls")
     args = parser.parse_args(argv)
     try:
+        if args.command == "benchmark":
+            return run_benchmark(args, ROOT)
         if args.command == "check":
             settings = load_settings(ROOT / ".env")
             worlds = read_pilot(ROOT / "data/pilot/worlds.json")
             read_key(ROOT / "data/pilot/answer_key.json", worlds)
             print(json.dumps({"configuration_valid": True, "live_services_checked": False,
-                              "settings": settings.public()}, indent=2))
+                              "scope": "standalone_pilot", "settings": settings.public()}, indent=2))
             return 0
         output = args.output or ROOT / "artifacts/pilot" / (
             datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6])

@@ -20,9 +20,9 @@ class Settings:
 
     def __post_init__(self):
         if not self.api_key or self.api_key in ("your-key-here", "sk-..."):
-            raise ValueError("Set OPENROUTER_API_KEY in the benchmark .env file")
+            raise ValueError("Set OPENAI_API_KEY for the shared benchmark or OPENROUTER_API_KEY for the standalone pilot")
         if not self.model or not self.provider:
-            raise ValueError("Set OPENROUTER_MODEL and OPENROUTER_PROVIDER in .env")
+            raise ValueError("Set the model and OPENROUTER_PROVIDER in the selected runner's settings")
         if any(c in self.api_key for c in "\r\n"):
             raise ValueError("OPENROUTER_API_KEY must be a single line")
         remote = urlsplit(self.base_url)
@@ -55,9 +55,9 @@ class Settings:
 
 
 def load_settings(path: Path) -> Settings:
-    """Read this folder's .env only; no shell expansion or inherited settings."""
+    """Read the standalone pilot's .env; shared runs use rule-chain-depth settings."""
     if not path.is_file():
-        raise ValueError("Create .env from .env.example and configure the key and provider")
+        raise ValueError("Create the standalone pilot's .env from .env.example and configure the key and provider")
     values = {}
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = line.strip()

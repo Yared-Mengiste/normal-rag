@@ -1,1 +1,1 @@
-"""Standalone sentence-retrieval and full-context pilot; no benchmark integration."""
+"""Sentence-retrieval and full-context baselines for rule-chain-depth."""

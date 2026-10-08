@@ -240,7 +240,7 @@ class BaselineTests(unittest.TestCase):
         self.assertEqual(answer.record["proof_coverage"]["retrieved_contains_required"], UNMEASURED)
         self.assertTrue(answer.record["proof_coverage"]["context_contains_required"])
 
-    def test_pilot_inputs_and_review_stage_limit(self):
+    def test_standalone_pilot_inputs_and_three_world_limit(self):
         worlds = read_pilot(ROOT / "data/pilot/worlds.json")
         key = read_key(ROOT / "data/pilot/answer_key.json", worlds)
         self.assertEqual([len(w["sentences"]) for w in worlds], [12, 12, 12])
@@ -256,7 +256,7 @@ class BaselineTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 read_pilot(path)
 
-    def test_cli_artifacts_preserve_raw_and_always_require_review(self):
+    def test_pilot_artifacts_preserve_raw_and_scope_review_to_pilot(self):
         raw = '\n{"label":"NOT_ESTABLISHED","cited":[]}  '
         http = FakeHTTP(envelope(raw))
         with tempfile.TemporaryDirectory() as folder:
@@ -270,7 +270,9 @@ class BaselineTests(unittest.TestCase):
             self.assertEqual((output / "01-rag/raw_model_output.txt").read_bytes(), raw.encode())
             gate = json.loads((output / "review_gate.json").read_text())
             self.assertEqual(gate["status"], "AWAITING_USER_REVIEW")
-            self.assertFalse(gate["runner_integration_enabled"])
+            self.assertEqual(gate["scope"], "pilot_outputs_only")
+            self.assertEqual(gate["benchmark_command"], "python3 -m normal_rag benchmark")
+            self.assertNotIn("runner_integration_enabled", gate)
             requests = list(output.glob("*/request.json"))
             self.assertEqual(len(requests), 6)
             for request in requests:

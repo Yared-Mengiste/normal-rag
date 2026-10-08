@@ -1,17 +1,106 @@
-# Normal RAG baseline — three-world review pilot
+# Normal RAG and full-context baselines
 
-A conventional sentence-retrieval baseline for comparison with
-[PLN-RAG](https://github.com/BekLG/PLN-RAG). This project runs independently and
-does not import or modify PLN-RAG. It needs Python 3.10+ with no Python package
-installation, local Ollama, and an OpenRouter key.
+Sentence-retrieval (`rag`) and full-context (`full_context`) baselines for the
+[rule-chain-depth benchmark](../rule-chain-depth/README.md), including its
+**20-world, 40-question dataset**. The `benchmark` command launches the shared
+runner with this checkout's answering code. Dataset validation, model settings,
+request budgets, scoring, and artifacts all come from `rule-chain-depth`.
 
-The current stage runs exactly three worlds for review. There is no integration
-with the rule-chain-depth benchmark runner and no 40-question command. That work
-requires approval of the live pilot outputs.
+The baselines need Python 3.10+ with no Python package installation and an
+OpenRouter key. RAG also needs local Ollama with `nomic-embed-text`; full context
+skips embeddings. The original standalone three-world pilot is available through
+`pilot` and `check`.
 
-## Configure and run
+## Run the shared 40-question benchmark
 
-Run from this folder:
+Keep `normal-rag` and `rule-chain-depth` as sibling folders. Configure
+**`../rule-chain-depth/.env`** using its [running guide](../rule-chain-depth/RUNNING.md#configuration).
+From this folder:
+
+```sh
+# Validate the dataset and settings and save a plan without model or embedding calls:
+python3 -m normal_rag benchmark --prepare-only
+
+# Normal RAG only: 40 questions / 40 records:
+python3 -m normal_rag benchmark --systems rag
+
+# Full context only: 40 questions / 40 records:
+python3 -m normal_rag benchmark --systems full_context
+
+# Both baselines (the default): 40 questions each / 80 records:
+python3 -m normal_rag benchmark
+
+# Small trial: four worlds, eight questions per baseline / 16 records:
+python3 -m normal_rag benchmark --world-limit 4
+```
+
+Commands without `--prepare-only` make real model calls. A prepared plan contains
+no model results, and a later live command starts a new run. Baseline-only runs
+do not require Docker, Qdrant, or an installed PLN-RAG runtime.
+
+The full dataset has five supported questions and five unsupported controls in
+each depth bucket, 0–3. Every world has 12 sentences and two questions. The first
+four worlds cover all four depths. The canonical inputs are
+[worlds.json](../rule-chain-depth/data/benchmark/worlds.json) and
+[hand_expected.json](../rule-chain-depth/data/benchmark/hand_expected.json);
+the shared runner validates them with both independent solvers before any model
+call. It sends the baselines only sentence IDs/text and question text.
+
+`--dataset pilot` selects rule-chain-depth's original **eight worlds / 16
+questions per system**. This is a separate dataset from this project's three-world
+standalone pilot.
+
+Shared configuration uses `OPENAI_API_KEY`, `OPENAI_MODEL=openrouter/<model>`,
+`OPENROUTER_PROVIDER`, `OPENROUTER_BASE_URL`, `OLLAMA_*`, and `B1_*` settings.
+Inherited environment values take precedence over `rule-chain-depth/.env`.
+The benchmark does not load `normal-rag/.env`. The shared adapter matches the
+model, provider pin, temperature, output limit, and timeout across systems and
+enforces one `B1_MAX_LLM_CALLS` cap for the run. It does not raise that cap.
+
+Results are saved under **`../rule-chain-depth/artifacts/benchmark/<run-id>/`**:
+
+- `manifest.json`: dataset fingerprint, selected worlds, settings, and source hashes.
+- `records.json`: one result per question and system, including explicit errors.
+- `summary.json` and `report.md`: overall and per-depth scores, errors, and timings.
+- Per-question input, request, response, and raw model output files.
+
+Prepared runs contain the manifest and validated inputs, without a summary or
+model results. Live exit codes match the shared runner: 0 for a completed run
+without error records (answers can still be wrong), 2 for a run with error
+records, and 1 for setup failure. See the [shared result guide](../rule-chain-depth/RUNNING.md#read-the-results)
+for request audits, proof coverage, skipped questions, and scoring details.
+
+To include PLN-RAG in the same run:
+
+```sh
+python3 -m normal_rag benchmark --systems pln_rag rag full_context \
+  --container pln-rag-pln-rag-1
+```
+
+That selects 40 questions per system, 120 records total. Follow the shared guide
+for Docker access, service configuration, and a sufficient request budget.
+
+Use `--rule-chain-depth-repo PATH` if the shared checkout is elsewhere. Its location
+defaults relative to this package, independent of the current working directory.
+Explicit paths supplied with `--worlds`, `--expected`, `--repo`, or `--python` are
+relative to the directory where you invoke the command; omitted paths use the
+shared runner's defaults. `--repo` and `--python` select the local PLN runtime.
+Other options include `--pln-runtime`, `--qdrant-url`, `--ollama-url`, and `--run-id`.
+Run `python3 -m normal_rag benchmark --help` for the full list.
+
+The equivalent command from `rule-chain-depth` is:
+
+```sh
+python3 -m b1 benchmark --systems rag full_context
+```
+
+## Standalone three-world pilot
+
+`pilot` runs the original small smoke test with this project's own input schema
+and configuration. `check` validates that pilot's configuration and fixtures;
+use `benchmark --prepare-only` to validate the shared experiment instead.
+
+To configure the standalone pilot, run from this folder:
 
 ```sh
 # If .env does not exist yet:
@@ -40,8 +129,9 @@ provider is still recorded independently of the requested provider, and the
 review gate lists all reported providers. Routing reference:
 <https://openrouter.ai/docs/guides/routing/provider-selection>.
 
-Settings are read from **this project's `.env`**, even when the command is run
-elsewhere. Other repositories' `.env` files and shell variables are not used.
+The `pilot` and `check` settings are read from **this project's `.env`**, even when
+the command is run elsewhere. These two commands do not use other repositories'
+`.env` files or inherited shell settings.
 Values may be bare or surrounded by matching quotes; use comments on separate
 lines. There is no variable interpolation. The API key is excluded from settings
 reports, requests saved to disk, and configuration object representations.
@@ -74,7 +164,7 @@ python3 -m normal_rag pilot --mode full_context --answer-key data/pilot/answer_k
 The output directory must not already exist. Exit code 0 means all calls produced
 valid answers, including possibly wrong answers; 2 means at least one question
 has label `ERROR`; 1 means setup failed before the run could proceed. Every run
-still requires human review before benchmark integration.
+provides outputs for human review; this review status applies only to pilot results.
 
 ## What the modes do
 
@@ -105,7 +195,7 @@ repaired or sent to a second call. Unknown or unshown cited IDs are removed from
 the normalized `cited` list and counted per occurrence, without changing a valid
 model label. Raw output remains untouched. Valid repeated citations are retained.
 
-## Inputs and pilot cases
+## Standalone pilot inputs
 
 `data/pilot/worlds.json` contains three hand-authored 12-sentence worlds:
 
@@ -153,7 +243,7 @@ test: another valid proof could use different sentences. No proof key yields
 `"unmeasured"`. Full context records retrieval coverage as `"unmeasured"` and
 measures `context_contains_required` separately.
 
-## Review artifacts and record semantics
+## Standalone pilot artifacts and record semantics
 
 Open `artifacts/pilot/<run-id>/review.md` for the retrieved/shown sentences, scores,
 raw completions, and complete records. The directory also contains:
@@ -167,7 +257,11 @@ raw completions, and complete records. The directory also contains:
 - `manifest.json`, `worlds.json`, optional `answer_key.json`: settings, source/input
   hashes, and the inputs needed to audit the run.
 - `review_gate.json`: completion/error counts, providers reported, and the fixed
-  status `AWAITING_USER_REVIEW`. It never authorizes integration automatically.
+  status `AWAITING_USER_REVIEW` with `scope: pilot_outputs_only`. The shared
+  benchmark is available independently of this pilot review status.
+
+Older saved pilots may still contain `runner_integration_enabled: false`; that
+historical field does not describe the current benchmark command.
 
 `retrieved` contains IDs and cosine scores. `context` contains exactly the IDs and
 texts shown in the prompt, in order. Full context has `retrieved: []` and
@@ -190,5 +284,16 @@ positive integers. Missing, zero, negative, or malformed values are
 object, including any provider-specific detail or zero value, remains in
 `response.body`. A missing raw completion is `null`, not a made-up answer.
 
-The tests use clearly fake in-memory HTTP responses; passing tests is not a live
-benchmark result. The handwritten proof key does not override model labels.
+The handwritten proof key does not override model labels.
+
+## Offline validation
+
+```sh
+python3 -m unittest discover -s tests -v
+```
+
+Core tests use fake in-memory HTTP responses. CLI integration tests use the
+sibling rule-chain-depth source and temporary copies of its dataset and runner;
+they exercise preparation without model or embedding calls. The shared project's
+own tests also cover all 120 comparison records with fake model responses.
+Passing tests verifies implementation behavior, not live model accuracy.
